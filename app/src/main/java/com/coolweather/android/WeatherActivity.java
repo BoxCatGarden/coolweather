@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -26,6 +27,9 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
@@ -35,6 +39,14 @@ public class WeatherActivity extends AppCompatActivity {
     public static final String KEY_WEATHER = "weather";
 
     public static final String KEY_BING_PIC = "bing_pic";
+
+    private DrawerLayout drawerLayout;
+
+    private Button navButton;
+
+    private SwipeRefreshLayout swipeRefresh;
+
+    private String mWeatherId;
 
     private ScrollView weatherLayout;
 
@@ -70,6 +82,8 @@ public class WeatherActivity extends AppCompatActivity {
             getWindow().setStatusBarColor(Color.TRANSPARENT);
         }
         setContentView(R.layout.activity_weather);
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        navButton = (Button) findViewById(R.id.nav_button);
         weatherLayout = (ScrollView) findViewById(R.id.weather_layout);
         titleCity = (TextView) findViewById(R.id.title_city);
         titleUpdateTime = (TextView) findViewById(R.id.title_update_time);
@@ -82,17 +96,30 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText = (TextView) findViewById(R.id.car_wash_text);
         sportText = (TextView) findViewById(R.id.sport_text);
         bingPicImg = (ImageView) findViewById(R.id.bing_pic_img);
+        swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
+
+        navButton.setOnClickListener(v -> {
+            drawerLayout.openDrawer(GravityCompat.START);
+        });
+
+        swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString(KEY_WEATHER, null);
         if (weatherString != null) {
             Weather weather = Utility.handleWeatherResponse(weatherString);
+            mWeatherId = weather.basic.weatherId;
             showWeatherInfo(weather);
         } else {
-            String weatherId = getIntent().getStringExtra("weather_id");
+            mWeatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
-            requestWeather(weatherId);
+            swipeRefresh.setRefreshing(true);
+            requestWeather(mWeatherId);
         }
+
+        swipeRefresh.setOnRefreshListener(() -> {
+            requestWeather(mWeatherId);
+        });
 
         String bingPic = prefs.getString(KEY_BING_PIC, null);
         if (bingPic != null) {
@@ -145,6 +172,7 @@ public class WeatherActivity extends AppCompatActivity {
                         editor.putString(KEY_WEATHER, responseText);
                         editor.apply();
                         showWeatherInfo(weather);
+                        swipeRefresh.setRefreshing(false);
                     });
                 } else {
                     showFailToast();
@@ -154,6 +182,7 @@ public class WeatherActivity extends AppCompatActivity {
             private void showFailToast() {
                 runOnUiThread(() -> {
                     Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                    swipeRefresh.setRefreshing(false);
                 });
             }
         });
@@ -194,6 +223,13 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText.setText(carWash);
         sportText.setText(sport);
         weatherLayout.setVisibility(View.VISIBLE);
+    }
+
+    public void changeCounty(String weatherId) {
+        mWeatherId = weatherId;
+        drawerLayout.closeDrawers();
+        swipeRefresh.setRefreshing(true);
+        requestWeather(weatherId);
     }
 
     public static void actionStart(Context context, String weatherId) {

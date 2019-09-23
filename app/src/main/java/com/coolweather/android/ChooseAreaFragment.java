@@ -1,6 +1,7 @@
 package com.coolweather.android;
 
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -90,8 +91,13 @@ public class ChooseAreaFragment extends Fragment {
                 queryCounties(true);
             } else {
                 String weatherId = countyList.get(position).getWeatherId();
-                WeatherActivity.actionStart(getActivity(), weatherId);
-                getActivity().finish();
+                Activity activity = getActivity();
+                if (activity instanceof MainActivity) {
+                    WeatherActivity.actionStart(activity, weatherId);
+                    getActivity().finish();
+                } else {
+                    ((WeatherActivity) activity).changeCounty(weatherId);
+                }
             }
         });
         backButton.setOnClickListener(v -> {
